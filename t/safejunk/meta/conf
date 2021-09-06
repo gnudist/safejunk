@@ -1,0 +1,8 @@
+{
+    "name": "eugenek-test-data",
+    
+    "path": "/home/eugenek",
+    "gpg_key_id": "2076B464D3A564F3FDE2D7AF8F6F5F90CB43D9BA",
+
+    "storage": "scp"
+}
