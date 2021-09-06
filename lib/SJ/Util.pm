@@ -46,6 +46,8 @@ Wb9NFm_1vywei3Wt:
 			
 		} elsif( -d $fullpath )
 		{
+			my $k = $fullpath;
+			push @rv, { $k => &_one_file_entry( $fullpath ) };
 			push @rv, &build_tree( $fullpath, $depth + 1 );
 		} else
 		{

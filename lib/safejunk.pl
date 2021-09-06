@@ -100,10 +100,16 @@ sub action_pack
 			my %to_update = %{ $to_update };
 			my $need_to_bump_revision = 0;
 
-			# $self -> msg( Dumper( \%actual_contents ) );
-			# $self -> msg( Dumper( \%safe_contents ) );
-# TODO			
+			if( @to_remove )
+			{
+				# TODO
+				foreach my $t ( sort { &fnsrt( $b ) cmp &fnsrt( $a ) } @to_remove )
+				{
+					print $t, "\n";
+				}
+			}
 
+			
 
 			
 
@@ -118,6 +124,15 @@ sub action_pack
 
 	
 	return 0;
+}
+
+sub fnsrt
+{
+	my $str = shift;
+
+	my $rv = sprintf( "%04d%s", length( $str ), $str );
+	
+	return $rv;
 }
 
 sub pack_compare_popout

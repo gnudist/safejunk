@@ -212,6 +212,8 @@ sub managed_entry_from_outside
 		
 	} elsif( -d $fp )
 	{
+		push @rv, { $e => &SJ::Util::_one_file_entry( $fp ) };
+		
 		my @t1 = &SJ::Util::build_tree( $fp );
 		my @t2 = ();
 
