@@ -5,6 +5,8 @@ package SJ::Util;
 
 use Carp::Assert 'assert';
 use Digest::MD5 ();
+use Data::Dumper 'Dumper';
+use File::Spec ();
 
 sub slurp
 {
@@ -76,9 +78,19 @@ sub _one_file_entry
 	if( -f $fp )
 	{
 		$rv{ 'md5' } = &file_md5( $fp );
+	} elsif( -d $fp )
+	{
+		delete $rv{ 'size' };
 	}
 
 	return \%rv;
+}
+
+sub dir_separator
+{
+	my $rv = File::Spec -> catfile( '', '' );
+	
+	return $rv;
 }
 
 sub file_md5
@@ -100,13 +112,18 @@ sub compare_two_entries
 {
 	my ( $e1, $e2 ) = @_;
 
-	my @f = ( 'mode', 'atime', 'ctime', 'mtime', 'size', 'md5' );
+	my @f = ( 'mode', 'mtime', 'size', 'md5' ); # atime, ctime ?
 
 	my $diff = undef;
 
 	foreach my $f ( @f )
 	{
-		unless( $e1 -> { $f } eq $e2 -> { $f } )
+		# assert( defined $e1 -> { $f }, Dumper( $e1 ) );
+		# assert( defined $e2 -> { $f }, Dumper( $e2 ) );
+		
+		unless( ( $e1 -> { $f } or '' ) # dir entries won't have md5
+			eq
+			( $e2 -> { $f } or '' ) )
 		{
 			unless( $diff )
 			{

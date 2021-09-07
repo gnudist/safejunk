@@ -34,6 +34,19 @@ sub _build_revno
 	return $rv;
 }
 
+sub bump_revno
+{
+	my $self = shift;
+
+	my $revno = ( $self -> revno() + 1 );
+	
+	assert( open( my $fh, '>', $self -> revno_path() ) );
+	$fh -> print( $revno );
+	$fh -> close();
+
+	return $revno;
+}
+
 sub check_errs
 {
 	my $self = shift;
@@ -200,7 +213,7 @@ sub _build_contents_path
 
 sub managed_entry_from_outside
 {
-	my ( $self, $e ) = @_;
+	my ( $self, $e, $more ) = @_;
 
 	my @rv = (); # can be subdir
 	
@@ -213,25 +226,35 @@ sub managed_entry_from_outside
 	} elsif( -d $fp )
 	{
 		push @rv, { $e => &SJ::Util::_one_file_entry( $fp ) };
-		
-		my @t1 = &SJ::Util::build_tree( $fp );
-		my @t2 = ();
 
-		my $remove = $self -> config() -> { 'path' };
-				
-		foreach my $f ( @t1 )
+		my $should_descend = 1;
+
+		if( $more and $more -> { 'only_dir' } )
 		{
-			my @t = %{ $f };
-			assert( scalar @t == 2 );
-
-			$t[ 0 ] =~ s/\Q$remove\E//g;
-			$t[ 0 ] =~ s/^[\/\\]//;
-			
-			push @t2, { $t[ 0 ] => $t[ 1 ] };
+			$should_descend = 0;
 		}
-		
-		push @rv, @t2;
 
+		if( $should_descend )
+		{
+		
+			my @t1 = &SJ::Util::build_tree( $fp );
+			my @t2 = ();
+
+			my $remove = $self -> config() -> { 'path' };
+				
+			foreach my $f ( @t1 )
+			{
+				my @t = %{ $f };
+				assert( scalar @t == 2 );
+
+				$t[ 0 ] =~ s/\Q$remove\E//g;
+				$t[ 0 ] =~ s/^[\/\\]//;
+				
+				push @t2, { $t[ 0 ] => $t[ 1 ] };
+			}
+		
+			push @rv, @t2;
+		}
 		
 	} else
 	{
