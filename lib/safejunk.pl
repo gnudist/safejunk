@@ -253,6 +253,34 @@ sub action_update_rep
 	return 0;
 }
 
+sub action_restore_from_rep
+{
+	my $self = shift;
+
+	if( my $path = $self -> cmd_line() -> [ 1 ] )
+	{
+		my $d = SJ::Dir -> new( path => $path );
+
+		if( my $err = $d -> check_errs() )
+		{
+			$self -> msg( "injalid Safejunk dir", $path, ":", $err );
+		} else
+		{
+			$self -> msg( "path is ok, continuing" );
+
+			my @safe_contents = &SJ::Util::build_tree( $d -> contents_path() );
+			$self -> msg( Dumper( \@safe_contents ) );
+		}
+		
+	} else
+	{
+		$self -> msg( "need path to valid Safejunk dir if doing restore" );
+	}
+	
+
+	return 0;
+}
+
 sub fnsrt
 {
 	my $str = shift;
