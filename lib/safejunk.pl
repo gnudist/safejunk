@@ -18,6 +18,7 @@ use Data::Dumper 'Dumper';
 use Carp::Assert 'assert';
 use File::Copy 'copy';
 use File::Path ( 'remove_tree' );
+use Cwd 'getcwd';
 
 sub app_mode_default
 {
@@ -34,6 +35,9 @@ sub app_mode_default
 		} elsif( $action eq 'rr' )
 		{
 			$self -> action_restore_from_rep();
+		} elsif( $action eq 'pack' )
+		{
+			$self -> action_pack_rep();
 		} else
 		{
 			$self -> msg( "don't know how to:", $action );
@@ -49,8 +53,81 @@ sub app_mode_default
 	return 0;
 }
 
-# Упаковка - берём текущее состояние, обновляем реп из него,
-# пакуем. Т.е. мастер - текущее положение дел.
+sub action_pack_rep
+{
+	my $self = shift;
+	
+	if( my $path = $self -> cmd_line() -> [ 1 ] )
+	{
+		my $d = SJ::Dir -> new( path => $path );
+
+		if( my $err = $d -> check_errs() )
+		{
+			$self -> msg( "injalid Safejunk dir", $path, ":", $err );
+		} else
+		{
+			my $orig = getcwd();
+			assert( chdir( $path ) );
+
+			$self -> msg( "invoking external pack command" );
+			my $rc = &SJ::Util::exec_cmd( &SJ::Util::tar_exe(),
+						      '-cz',
+						      './' );
+			$self -> msg( "external pack command finished" );
+
+			if( $rc -> { 'rc' } == 0 )
+			{
+				unlink( $rc -> { 'err' } );
+
+				assert( -f ( my $packed = $rc -> { 'out' } ) );
+				$self -> msg( "... successfully packed into", $packed );
+
+				my $encrypted = File::Temp::tmpnam();
+
+				$self -> msg( "encypting..." );
+				my $erc = &SJ::Util::exec_cmd( &SJ::Util::gpg_exe(),
+							       "--output",
+							       $encrypted,
+							       "--encrypt",
+							       "--sign",
+							       "--recipient",
+							       $d -> config() -> { 'gpg_key_id' },
+							       $packed );
+				assert( unlink( $packed ) );
+				$self -> msg( "finished" );
+
+				if( $erc -> { 'rc' } == 0 )
+				{
+					$self -> msg( "encrypted in", $encrypted );
+
+					# TODO handle push
+					
+				} else
+				{
+					assert( 0, &SJ::Util::slurp( $erc -> { 'err' } ) .
+						   Dumper( $erc ) );
+				}
+				
+				
+				
+				
+			} else
+			{
+				assert( 0, &SJ::Util::slurp( $rc -> { 'err' } ) .
+					   Dumper( $rc ) );
+			}
+			
+			assert( chdir( $orig ) );
+		}
+	} else
+	{
+		$self -> msg( "need path to valid Safejunk dir if doing pack" );
+	}
+
+	return 0;
+	
+}
+
 sub action_update_rep
 {
 	my $self = shift;
@@ -66,24 +143,7 @@ sub action_update_rep
 		{
 			$self -> msg( "path is ok, continuing" );
 
-			my %safe_contents = ();
-
-			{
-				my @safe_contents = &SJ::Util::build_tree( $d -> contents_path() );
-
-				my $remove = $d -> contents_path();
-				
-				foreach my $f ( @safe_contents )
-				{
-					my @t = %{ $f };
-					assert( scalar @t == 2 );
-
-					$t[ 0 ] =~ s/\Q$remove\E//g;
-					$t[ 0 ] =~ s/^[\/\\]//;
-
-					$safe_contents{ $t[ 0 ] } = $t[ 1 ];
-				}
-			}
+			my %safe_contents = %{ $self -> popout_contents_build( $d -> contents_path() ) };
 
 			my %actual_contents = ();
 
@@ -247,10 +307,36 @@ sub action_update_rep
 		
 	} else
 	{
-		$self -> msg( "need path to valid Safejunk dir if doing pack" );
+		$self -> msg( "need path to valid Safejunk dir if doing rep update" );
 	}
 	
 	return 0;
+}
+
+sub popout_contents_build
+{
+	my ( $self, $path ) = @_;
+
+	my %safe_contents = ();
+	
+	{
+		my @safe_contents = &SJ::Util::build_tree( $path );
+		
+		my $remove = $path;
+		
+		foreach my $f ( @safe_contents )
+		{
+			my @t = %{ $f };
+			assert( scalar @t == 2 );
+			
+			$t[ 0 ] =~ s/\Q$remove\E//g;
+			$t[ 0 ] =~ s/^[\/\\]//;
+			
+			$safe_contents{ $t[ 0 ] } = $t[ 1 ];
+		}
+	}
+	
+	return \%safe_contents;
 }
 
 sub action_restore_from_rep
@@ -268,8 +354,123 @@ sub action_restore_from_rep
 		{
 			$self -> msg( "path is ok, continuing" );
 
-			my @safe_contents = &SJ::Util::build_tree( $d -> contents_path() );
-			$self -> msg( Dumper( \@safe_contents ) );
+			my %safe_contents = %{ $self -> popout_contents_build( $d -> contents_path() ) };
+
+			my %actual_contents = ();
+
+			foreach my $e ( keys %safe_contents )
+			{
+				my @t = $d -> managed_entry_from_outside( $e, { only_dir => 1,
+										missing_ok => 1 } );
+
+				foreach my $t ( @t )
+				{
+					my @t1 = %{ $t };
+					assert( scalar @t1 == 2 );
+					$actual_contents{ $t1[ 0 ] } = $t1[ 1 ];
+				}
+			}
+
+			# my %me_contents = ();
+
+			# foreach my $e ( @{ $d -> managed_entries() } )
+			# {
+			# 	my @t = $d -> managed_entry_from_outside( $e, { only_dir => 1,
+			# 							missing_ok => 1 } );
+
+			# 	foreach my $t ( @t )
+			# 	{
+			# 		my @t1 = %{ $t };
+			# 		assert( scalar @t1 == 2 );
+			# 		$me_contents{ $t1[ 0 ] } = $t1[ 1 ];
+			# 	}
+			# }
+			
+
+			
+			# print Dumper( \%me_contents );
+			# print "--------------------\n";
+			# print Dumper( \%actual_contents );
+
+			# my ( $to_remove, $to_add, $to_update ) = $self -> pack_compare_popout( \%actual_contents, \%me_contents );
+			# $self -> msg( "remove:", Dumper( $to_remove ) );
+			
+			my ( $to_remove, $to_add, $to_update ) = $self -> pack_compare_popout( \%actual_contents, \%safe_contents );
+
+			# TODO: remove anything at all?
+
+			# $self -> msg( "remove:", Dumper( $to_remove ) );
+			# $self -> msg( "add:", Dumper( $to_add ) );
+			# $self -> msg( "update:", Dumper( $to_update ) );
+
+			my @to_add = @{ $to_add };
+			my %to_update = %{ $to_update };
+
+
+			if( @to_add )
+			{
+				foreach my $t ( sort { &fnsrt( $a ) cmp &fnsrt( $b ) } @to_add )
+				{
+					my $fp_or = File::Spec -> catfile( $d -> config() -> { 'path' }, $t );
+					my $fp_ir = File::Spec -> catfile( $d -> contents_path(), $t );
+
+					if( -f $fp_ir )
+					{
+						$self -> msg( "copying", $t, "from rep" );
+						assert( copy( $fp_ir, $fp_or ), 'could not copy?' );
+						assert( -f $fp_or );
+						
+					} elsif( -d $fp_ir )
+					{
+						$self -> msg( "creating dir", $t );
+						assert( mkdir( $fp_or ), "could not create dir?" );
+						assert( -d $fp_or );
+						
+					} else
+					{
+						assert( 0, "don't know how to handle " . $fp_ir );
+					}
+					$to_update{ $t } = [ 'mtime', 'mode' ];
+				}
+			}
+
+			while( my ( $k, $v ) = each %to_update )
+			{
+				my $fp_or = File::Spec -> catfile( $d -> config() -> { 'path' }, $k );
+				my $fp_ir = File::Spec -> catfile( $d -> contents_path(), $k );
+				assert( my $canon = $safe_contents{ $k } );
+
+				foreach my $change ( sort @{ $v } )
+				{
+					if( $change eq 'md5' )
+					{
+						if( -f $fp_or )
+						{
+							assert( unlink( $fp_or ), "remove " . $fp_or );
+						} elsif( -d $fp_or )
+						{
+							assert( 0 );
+						}
+						assert( -f $fp_ir );
+						copy( $fp_ir, $fp_or );
+					}
+					
+					if( $change eq 'mode' )
+					{
+						my $newmode = $canon -> { 'mode' };
+						$self -> msg( "setting mode", $newmode, "to", $fp_or );
+						assert( chmod( $newmode, $fp_or ) );
+						
+					} elsif( ( $change eq 'atime' ) or ( $change eq 'mtime' ) )
+					{
+						utime( $canon -> { 'atime' },
+						       $canon -> { 'mtime' },
+						       $fp_or );
+					}
+				}
+			}
+
+			$self -> msg( "completed" );
 		}
 		
 	} else

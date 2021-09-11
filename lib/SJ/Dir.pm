@@ -258,7 +258,13 @@ sub managed_entry_from_outside
 		
 	} else
 	{
-		assert( 0, "unknown: " . $fp );
+		if( $more and $more -> { 'missing_ok' } )
+		{
+			1;
+		} else
+		{
+			assert( 0, "unknown: " . $fp );
+		}
 	}
 	    
 

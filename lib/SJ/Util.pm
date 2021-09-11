@@ -7,6 +7,61 @@ use Carp::Assert 'assert';
 use Digest::MD5 ();
 use Data::Dumper 'Dumper';
 use File::Spec ();
+use String::ShellQuote 'shell_quote';
+use File::Temp 'tmpnam';
+
+sub tar_exe
+{
+	my $rv = '/usr/bin/tar';
+
+	
+	return &any_exe( $rv );
+}
+
+sub gpg_exe
+{
+	my $rv = '/usr/bin/gpg';
+	
+	return &any_exe( $rv );
+}
+
+sub any_exe
+{
+	my $rv = shift;
+
+	if( -f $rv and -x $rv )
+	{
+		1;
+	} else
+	{
+		assert( 0, "no exe " . $rv );
+	}
+
+	return $rv;
+}
+
+sub exec_cmd
+{
+	my @args = @_;
+
+	my $cmd = join( " ", map { scalar shell_quote( $_ ) } @args );
+
+	my $stdout = tmpnam();
+	my $stderr = tmpnam();
+
+	$cmd .= ' > ' . $stdout;
+	$cmd .= ' 2> ' . $stderr;
+
+	my $rc = system( $cmd );
+
+
+	my %rv = ( out => $stdout,
+		   err => $stderr,
+		   full_rc => $rc,
+		   rc => $rc >> 8 );
+	
+	return \%rv;
+}
 
 sub slurp
 {
