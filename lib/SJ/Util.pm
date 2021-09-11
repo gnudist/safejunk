@@ -10,10 +10,27 @@ use File::Spec ();
 use String::ShellQuote 'shell_quote';
 use File::Temp 'tmpnam';
 
+sub scp
+{
+	my ( $from, $to ) = @_;
+
+	my $rv = &exec_cmd( &scp_exe(),
+			    $from,
+			    $to );
+	
+	return $rv;
+}
+
 sub tar_exe
 {
 	my $rv = '/usr/bin/tar';
+	
+	return &any_exe( $rv );
+}
 
+sub scp_exe
+{
+	my $rv = '/usr/bin/scp';
 	
 	return &any_exe( $rv );
 }

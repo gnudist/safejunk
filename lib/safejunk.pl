@@ -38,6 +38,9 @@ sub app_mode_default
 		} elsif( $action eq 'pack' )
 		{
 			$self -> action_pack_rep();
+		} elsif( $action eq 'pull' )
+		{
+			1;
 		} else
 		{
 			$self -> msg( "don't know how to:", $action );
@@ -80,7 +83,7 @@ sub action_pack_rep
 				unlink( $rc -> { 'err' } );
 
 				assert( -f ( my $packed = $rc -> { 'out' } ) );
-				$self -> msg( "... successfully packed into", $packed );
+				$self -> msg( "successfully packed into", $packed );
 
 				my $encrypted = File::Temp::tmpnam();
 
@@ -100,7 +103,35 @@ sub action_pack_rep
 				{
 					$self -> msg( "encrypted in", $encrypted );
 
-					# TODO handle push
+					if( my $push_method = $d -> config() -> { 'storage' } )
+					{
+						if( $push_method eq 'scp' )
+						{
+							assert( my $storage_path = $d -> config() -> { 'scp_path' } );
+							$self -> msg( 'scp-ing to', $storage_path );
+							my $rc = &SJ::Util::scp( $encrypted,
+										 $storage_path );
+
+							if( $rc -> { 'rc' } == 0 )
+							{
+								$self -> msg( "succes" );
+							} else
+							{
+								$self -> msg( "error?", &SJ::Util::slurp( $rc -> { 'err' } ), Dumper( $rc ) );
+							}
+							assert( unlink( $encrypted ) );
+							$self -> msg( "removed local encypted package" );
+							
+							
+						} else
+						{
+							assert( 0, 'unknown push method: ' . $push_method );
+						}
+						
+					} else
+					{
+						$self -> msg( "no push method declared, nothing more to do" );
+					}
 					
 				} else
 				{
@@ -149,7 +180,7 @@ sub action_update_rep
 
 			foreach my $e ( @{ $d -> managed_entries() } )
 			{
-				my @t = $d -> managed_entry_from_outside( $e );
+				my @t = $d -> managed_entry_from_outside( $e, { missing_ok => 1 } );
 
 				foreach my $t ( @t )
 				{
@@ -174,7 +205,8 @@ sub action_update_rep
 
 						unless( exists $actual_contents{ $p1 } )
 						{
-							my @t = $d -> managed_entry_from_outside( $p1, { only_dir => 1 } );
+							my @t = $d -> managed_entry_from_outside( $p1, { only_dir => 1,
+													 missing_ok => 1 } );
 
 							foreach my $t ( @t )
 							{
