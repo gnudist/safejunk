@@ -8,6 +8,7 @@ use lib ".";
 package Safejunk;
 use Moose;
 extends 'SJ::App';
+with 'SJ::Msg';
 
 has 'cmd_line' => ( is => 'rw', isa => 'ArrayRef[Str]' );
 has 'version' => ( is => 'ro', isa => 'Str', default => '0.01' );
@@ -18,7 +19,9 @@ use Data::Dumper 'Dumper';
 use Carp::Assert 'assert';
 use File::Copy 'copy';
 use File::Path ( 'remove_tree' );
+use File::Temp ();
 use Cwd 'getcwd';
+use SJ::Storage ();
 
 sub app_mode_default
 {
@@ -40,7 +43,7 @@ sub app_mode_default
 			$self -> action_pack_rep();
 		} elsif( $action eq 'pull' )
 		{
-			1;
+			$self -> action_pull_rep();
 		} else
 		{
 			$self -> msg( "don't know how to:", $action );
@@ -55,6 +58,114 @@ sub app_mode_default
 
 	return 0;
 }
+
+sub action_pull_rep
+{
+	my $self = shift;
+	
+	if( my $path = $self -> cmd_line() -> [ 1 ] )
+	{
+		my $d = SJ::Dir -> new( path => $path );
+
+		if( my $err = $d -> check_errs() )
+		{
+			$self -> msg( "injalid Safejunk dir", $path, ":", $err );
+		} else
+		{
+			if( my $method = $d -> config() -> { 'storage' } )
+			{
+				my $s = SJ::Storage -> new( config => $method );
+
+				my $packed = $s -> pull_latest();
+				my $decrypted = File::Temp::tmpnam();
+
+				$self -> msg( "decrypting package to", $decrypted );
+				my $drc = &SJ::Util::exec_cmd( &SJ::Util::gpg_exe(),
+							       "--output",
+							       $decrypted,
+							       "--decrypt",
+							       $packed );
+				assert( unlink( $packed ) );
+				$self -> msg( "finished" );
+
+				if( $drc -> { 'rc' } == 0 )
+				{
+					$self -> msg( "decryption success" );
+
+					my $twd = File::Temp::tmpnam();
+					assert( mkdir( $twd ) );
+					my $was_in = getcwd();
+					assert( chdir( $twd ) );
+
+					$self -> msg( "unpacking" );
+					
+					my $unp_rc = &SJ::Util::exec_cmd( &SJ::Util::tar_exe(),
+									  '-xzf',
+									  $decrypted );
+					$self -> msg( "finished" );
+					
+					if( $unp_rc -> { 'rc' } == 0 )
+					{
+						assert( chdir( $was_in ) );
+						
+						$self -> msg( "successfully unpacked inside", $twd );
+						my $unp_d = SJ::Dir -> new( path => $twd );
+
+						if( my $err = $unp_d -> check_errs() )
+						{
+							$self -> msg( "weird: injalid Safejunk dir", $unp_d -> path(), ":", $err );
+						} else
+						{
+							$self -> msg( "received Safejunk dir is ok, revision",
+								      $unp_d -> revno(),
+								      "while my revision is",
+								      $d -> revno() );
+
+							# TODO
+
+							
+
+							
+						}
+						assert( remove_tree( $twd ) );
+						assert( not ( -d $twd ) );
+						    
+					} else
+					{
+						
+						assert( 0, &SJ::Util::slurp( $unp_rc -> { 'err' } ) .
+							Dumper( $unp_rc ) );
+						
+					}
+
+					assert( unlink( $decrypted ) );
+					
+				} else
+				{
+					assert( 0, &SJ::Util::slurp( $drc -> { 'err' } ) .
+						   Dumper( $drc ) );
+				}
+				
+
+
+
+
+				
+			} else
+			{
+				$self -> msg( "can't pull without method" );
+			}
+		}
+		
+	} else
+	{
+		$self -> msg( "need path to valid Safejunk dir if doing pull" );
+	}
+
+	return 0;
+	
+}
+	
 
 sub action_pack_rep
 {
@@ -87,7 +198,7 @@ sub action_pack_rep
 
 				my $encrypted = File::Temp::tmpnam();
 
-				$self -> msg( "encypting..." );
+				$self -> msg( "encrypting to", $encrypted );
 				my $erc = &SJ::Util::exec_cmd( &SJ::Util::gpg_exe(),
 							       "--output",
 							       $encrypted,
@@ -105,28 +216,11 @@ sub action_pack_rep
 
 					if( my $push_method = $d -> config() -> { 'storage' } )
 					{
-						if( $push_method eq 'scp' )
-						{
-							assert( my $storage_path = $d -> config() -> { 'scp_path' } );
-							$self -> msg( 'scp-ing to', $storage_path );
-							my $rc = &SJ::Util::scp( $encrypted,
-										 $storage_path );
-
-							if( $rc -> { 'rc' } == 0 )
-							{
-								$self -> msg( "succes" );
-							} else
-							{
-								$self -> msg( "error?", &SJ::Util::slurp( $rc -> { 'err' } ), Dumper( $rc ) );
-							}
-							assert( unlink( $encrypted ) );
-							$self -> msg( "removed local encypted package" );
-							
-							
-						} else
-						{
-							assert( 0, 'unknown push method: ' . $push_method );
-						}
+						my $s = SJ::Storage -> new( config => $push_method );
+						$s -> push_file( $encrypted );
+						
+						assert( unlink( $encrypted ) );
+						$self -> msg( "removed local encypted package" );
 						
 					} else
 					{
