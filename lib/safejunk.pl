@@ -17,7 +17,7 @@ use SJ::Dir ();
 use SJ::Util ();
 use Data::Dumper 'Dumper';
 use Carp::Assert 'assert';
-use File::Copy 'copy';
+use File::Copy 'copy'; # File::Copy::Recursive
 use File::Path ( 'remove_tree' );
 use File::Temp ();
 use Cwd 'getcwd';
