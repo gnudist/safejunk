@@ -38,11 +38,17 @@ sub bump_revno
 {
 	my $self = shift;
 
-	my $revno = ( $self -> revno() + 1 );
-	
+	return $self -> set_revno( $self -> revno() + 1 );
+}
+
+sub set_revno
+{
+	my ( $self, $revno ) = @_;
+
 	assert( open( my $fh, '>', $self -> revno_path() ) );
 	$fh -> print( $revno );
 	$fh -> close();
+	$self -> revno( $revno );
 
 	return $revno;
 }

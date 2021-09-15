@@ -121,10 +121,19 @@ sub action_pull_rep
 								      "while my revision is",
 								      $d -> revno() );
 
-							# TODO
+							$d -> config() -> { 'path' } = $unp_d -> contents_path();
+							$self -> action_update_rep( pre_d => $d,
+										    skip_rev_bump => 1 );
 
-							
+							# my %unp_contents = %{ $self -> popout_contents_build( $unp_d -> contents_path() ) };
+							# my %my_contents = %{ $self -> popout_contents_build( $d -> contents_path() ) };
 
+							# my ( $to_remove, $to_add, $to_update ) = $self -> pack_compare_popout( \%my_contents,
+							# 								       \%unp_contents );
+
+							# $self -> msg( "remove:", Dumper( $to_remove ) );
+							# $self -> msg( "add:", Dumper( $to_add ) );
+							# $self -> msg( "update:", Dumper( $to_update ) );
 							
 						}
 						assert( remove_tree( $twd ) );
@@ -257,9 +266,23 @@ sub action_update_rep
 {
 	my $self = shift;
 
+	my %inc_args = @_;
+	
+	my ( $already_d,
+	     $skip_rev_bump ) = @inc_args{ 'pre_d', 'skip_rev_bump' };
+	
+	if( $already_d )
+	{
+		$self -> msg( "Got pre-created SJ::Dir with outside path",
+			      $already_d -> config() -> { 'path' },
+			      "inside path",
+			      $already_d -> contents_path(),
+			      "- doing pull?" );
+	}
+
 	if( my $path = $self -> cmd_line() -> [ 1 ] )
 	{
-		my $d = SJ::Dir -> new( path => $path );
+		my $d = ( $already_d or SJ::Dir -> new( path => $path ) );
 
 		if( my $err = $d -> check_errs() )
 		{
@@ -420,7 +443,7 @@ sub action_update_rep
 				$need_to_bump_revision = 1;
 			}
 
-			if( $need_to_bump_revision )
+			if( $need_to_bump_revision and ( not $skip_rev_bump ) )
 			{
 				my $was = $d -> revno();
 				my $new = $d -> bump_revno();
