@@ -81,6 +81,7 @@ sub action_pull_rep
 
 				$self -> msg( "decrypting package to", $decrypted );
 				my $drc = &SJ::Util::exec_cmd( &SJ::Util::gpg_exe(),
+							       "--use-agent",
 							       "--output",
 							       $decrypted,
 							       "--decrypt",
@@ -209,6 +210,7 @@ sub action_pack_rep
 
 				$self -> msg( "encrypting to", $encrypted );
 				my $erc = &SJ::Util::exec_cmd( &SJ::Util::gpg_exe(),
+							       "--use-agent",
 							       "--output",
 							       $encrypted,
 							       "--encrypt",
