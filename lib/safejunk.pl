@@ -125,6 +125,8 @@ sub action_pull_rep
 							$d -> config() -> { 'path' } = $unp_d -> contents_path();
 							$self -> action_update_rep( pre_d => $d,
 										    skip_rev_bump => 1 );
+							
+							$d -> set_revno( $unp_d -> revno() );
 
 							# my %unp_contents = %{ $self -> popout_contents_build( $unp_d -> contents_path() ) };
 							# my %my_contents = %{ $self -> popout_contents_build( $d -> contents_path() ) };
@@ -286,7 +288,7 @@ sub action_update_rep
 	{
 		my $d = ( $already_d or SJ::Dir -> new( path => $path ) );
 
-		if( my $err = $d -> check_errs() )
+		if( ( not $already_d ) and ( my $err = $d -> check_errs() ) )
 		{
 			$self -> msg( "injalid Safejunk dir", $path, ":", $err );
 		} else
@@ -308,6 +310,7 @@ sub action_update_rep
 					$actual_contents{ $t1[ 0 ] } = $t1[ 1 ];
 				}
 			}
+			print Dumper( \%actual_contents );
 
 			foreach my $e ( @{ $d -> managed_entries() } )
 			{
