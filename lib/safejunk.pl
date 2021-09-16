@@ -310,7 +310,6 @@ sub action_update_rep
 					$actual_contents{ $t1[ 0 ] } = $t1[ 1 ];
 				}
 			}
-			print Dumper( \%actual_contents );
 
 			foreach my $e ( @{ $d -> managed_entries() } )
 			{
