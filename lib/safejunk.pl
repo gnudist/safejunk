@@ -44,6 +44,12 @@ sub app_mode_default
 		} elsif( $action eq 'pull' )
 		{
 			$self -> action_pull_rep();
+		} elsif( $action eq 'li' )
+		{
+			$self -> action_local_info();
+		} elsif( $action eq 'ri' )
+		{
+			$self -> action_remote_info();
 		} else
 		{
 			$self -> msg( "don't know how to:", $action );
@@ -177,6 +183,104 @@ sub action_pull_rep
 	return 0;
 	
 }
+
+sub action_remote_info
+{
+	my $self = shift;
+	
+	if( my $path = $self -> cmd_line() -> [ 1 ] )
+	{
+		my $d = SJ::Dir -> new( path => $path );
+
+		if( my $err = $d -> check_errs() )
+		{
+			$self -> msg( "injalid Safejunk dir", $path, ":", $err );
+		} else
+		{
+			if( my $method = $d -> config() -> { 'storage' } )
+			{
+				my $s = SJ::Storage -> new( config => $method );
+
+				my $packed = $s -> pull_latest();
+				my $decrypted = File::Temp::tmpnam();
+
+				$self -> msg( "decrypting package to", $decrypted );
+				my $drc = &SJ::Util::exec_cmd( &SJ::Util::gpg_exe(),
+							       "--use-agent",
+							       "--output",
+							       $decrypted,
+							       "--decrypt",
+							       $packed );
+				assert( unlink( $packed ) );
+				$self -> msg( "finished" );
+
+				if( $drc -> { 'rc' } == 0 )
+				{
+					$self -> msg( "decryption success" );
+
+					my $twd = File::Temp::tmpnam();
+					assert( mkdir( $twd ) );
+					my $was_in = getcwd();
+					assert( chdir( $twd ) );
+
+					$self -> msg( "unpacking" );
+					
+					my $unp_rc = &SJ::Util::exec_cmd( &SJ::Util::tar_exe(),
+									  '-xzf',
+									  $decrypted );
+					$self -> msg( "finished" );
+					
+					if( $unp_rc -> { 'rc' } == 0 )
+					{
+						assert( chdir( $was_in ) );
+						
+						$self -> msg( "successfully unpacked inside", $twd );
+						my $unp_d = SJ::Dir -> new( path => $twd );
+
+						if( my $err = $unp_d -> check_errs() )
+						{
+							$self -> msg( "weird: injalid Safejunk dir", $unp_d -> path(), ":", $err );
+						} else
+						{
+							$self -> msg( "received Safejunk dir is ok, revision",
+								      $unp_d -> revno(),
+								      "while my revision is",
+								      $d -> revno() );
+
+						}
+						assert( remove_tree( $twd ) );
+						assert( not ( -d $twd ) );
+						    
+					} else
+					{
+						
+						assert( 0, &SJ::Util::slurp( $unp_rc -> { 'err' } ) .
+							Dumper( $unp_rc ) );
+						
+					}
+
+					assert( unlink( $decrypted ) );
+					
+				} else
+				{
+					assert( 0, &SJ::Util::slurp( $drc -> { 'err' } ) .
+						   Dumper( $drc ) );
+				}
+				
+			} else
+			{
+				$self -> msg( "can't pull without method" );
+			}
+		}
+		
+	} else
+	{
+		$self -> msg( "need path to valid Safejunk dir if doing ri (remote info)" );
+	}
+
+	return 0;
+	
+}
 	
 
 sub action_pack_rep
@@ -264,6 +368,29 @@ sub action_pack_rep
 
 	return 0;
 	
+}
+
+sub action_local_info
+{
+	my $self = shift;
+	
+	if( my $path = $self -> cmd_line() -> [ 1 ] )
+	{
+		my $d = SJ::Dir -> new( path => $path );
+
+		if( my $err = $d -> check_errs() )
+		{
+			$self -> msg( "injalid Safejunk dir", $path, ":", $err );
+		} else
+		{
+			$self -> msg( "revision", $d -> revno() );
+		}
+	} else
+	{
+		$self -> msg( "need path to valid Safejunk dir if doing li (local info)" );
+	}
+
+	return 0;
 }
 
 sub action_update_rep
