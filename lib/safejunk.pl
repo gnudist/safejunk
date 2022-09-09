@@ -248,6 +248,82 @@ sub action_remote_info
 								      $d -> revno() );
 
 						}
+
+
+						###
+
+						{
+							my %safe_contents = %{ $self -> popout_contents_build( $d -> contents_path() ) };
+							
+							my %actual_contents = ();
+							
+							foreach my $e ( @{ $d -> managed_entries() } )
+							{
+								my @t = $d -> managed_entry_from_outside( $e, { missing_ok => 1 } );
+								
+								foreach my $t ( @t )
+								{
+									my @t1 = %{ $t };
+									assert( scalar @t1 == 2 );
+									$actual_contents{ $t1[ 0 ] } = $t1[ 1 ];
+								}
+							}
+							
+							foreach my $e ( @{ $d -> managed_entries() } )
+							{
+								my $s = &SJ::Util::dir_separator();
+								my @parts = split( /\Q$s\E/, $e );
+								
+								if( scalar @parts > 1 )
+								{
+									my @t = ();
+									foreach my $p ( @parts )
+									{
+										push @t, $p;
+										my $p1 = join( $s, @t );
+										
+										unless( exists $actual_contents{ $p1 } )
+										{
+											my @t = $d -> managed_entry_from_outside( $p1, { only_dir => 1,
+																	 missing_ok => 1 } );
+											
+											foreach my $t ( @t )
+											{
+												my @t1 = %{ $t };
+												assert( scalar @t1 == 2 );
+												$actual_contents{ $t1[ 0 ] } = $t1[ 1 ];
+											}
+										}
+									}
+								}
+							}
+							
+							
+							
+							my ( $to_remove, $to_add, $to_update ) = $self -> pack_compare_popout( \%safe_contents, \%actual_contents );
+							
+							if( $to_remove and ( scalar @{ $to_remove } > 0 ) )
+							{
+								$self -> msg( "to remove", Dumper( $to_remove ) );
+							}
+							
+							if( $to_add and ( scalar @{ $to_add } > 0 ) )
+							{
+								$self -> msg( "to add", Dumper( $to_add ) );
+							}
+							
+							
+							if( $to_update and ( scalar keys %{ $to_update } > 0 ) )
+							{
+								$self -> msg( "to update", Dumper( $to_update ) );
+							}
+							
+						}
+			
+						###
+						
+
+						
 						assert( remove_tree( $twd ) );
 						assert( not ( -d $twd ) );
 						    
