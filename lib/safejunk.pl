@@ -635,6 +635,10 @@ sub action_update_rep
 						assert( my $newmode = $canon -> { 'mode' } );
 						$self -> msg( "(3) setting mode", $newmode, "to", $fp_ir );
 						assert( chmod( $newmode, $fp_ir ) );
+
+						utime( $canon -> { 'atime' },
+						       $canon -> { 'mtime' },
+						       $fp_ir );
 						
 					}
 					
@@ -643,6 +647,9 @@ sub action_update_rep
 						my $newmode = $canon -> { 'mode' };
 						$self -> msg( "(2) setting mode", $newmode, "to", $fp );
 						assert( chmod( $newmode, $fp ) );
+						utime( $canon -> { 'atime' },
+						       $canon -> { 'mtime' },
+						       $fp );
 						
 					} elsif( ( $change eq 'atime' ) or ( $change eq 'mtime' ) )
 					{
