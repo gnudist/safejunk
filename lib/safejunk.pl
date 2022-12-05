@@ -631,12 +631,17 @@ sub action_update_rep
 						}
 						assert( -f $fp_or );
 						copy( $fp_or, $fp_ir );
+
+						assert( my $newmode = $canon -> { 'mode' } );
+						$self -> msg( "(3) setting mode", $newmode, "to", $fp_ir );
+						assert( chmod( $newmode, $fp_ir ) );
+						
 					}
 					
 					if( $change eq 'mode' )
 					{
 						my $newmode = $canon -> { 'mode' };
-						$self -> msg( "setting mode", $newmode, "to", $fp );
+						$self -> msg( "(2) setting mode", $newmode, "to", $fp );
 						assert( chmod( $newmode, $fp ) );
 						
 					} elsif( ( $change eq 'atime' ) or ( $change eq 'mtime' ) )
@@ -814,7 +819,7 @@ sub action_restore_from_rep
 					if( $change eq 'mode' )
 					{
 						my $newmode = $canon -> { 'mode' };
-						$self -> msg( "setting mode", $newmode, "to", $fp_or );
+						$self -> msg( "(1) setting mode", $newmode, "to", $fp_or );
 						assert( chmod( $newmode, $fp_or ) );
 						
 					} elsif( ( $change eq 'atime' ) or ( $change eq 'mtime' ) )
