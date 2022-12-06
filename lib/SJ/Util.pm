@@ -10,6 +10,27 @@ use File::Spec ();
 use String::ShellQuote 'shell_quote';
 use File::Temp 'tmpnam';
 
+sub mrweb_stuff_pstrftime
+{
+	my $stamp = shift;
+
+	unless( $stamp )
+	{
+		$stamp = time();
+	}
+
+	my @dm = localtime( $stamp );
+
+	return sprintf( "%04d-%02d-%02d %02d:%02d:%02d",
+			$dm[ 5 ] + 1900,
+			$dm[ 4 ] + 1,
+			$dm[ 3 ],
+			$dm[ 2 ],
+			$dm[ 1 ],
+			$dm[ 0 ] );
+
+}
+
 sub scp
 {
 	my ( $from, $to ) = @_;

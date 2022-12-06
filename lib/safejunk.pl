@@ -125,14 +125,19 @@ sub action_pull_rep
 						{
 							$self -> msg( "received Safejunk dir is ok, revision",
 								      $unp_d -> revno(),
+								      "from",
+								      &SJ::Util::mrweb_stuff_pstrftime( $unp_d -> timestamp() ),
 								      "while my revision is",
-								      $d -> revno() );
+								      $d -> revno(),
+								      "from",
+								      &SJ::Util::mrweb_stuff_pstrftime( $d -> timestamp() ) );
 
 							$d -> config() -> { 'path' } = $unp_d -> contents_path();
 							$self -> action_update_rep( pre_d => $d,
 										    skip_rev_bump => 1 );
 							
 							$d -> set_revno( $unp_d -> revno() );
+							$d -> set_timestamp( $unp_d -> timestamp() );
 
 							# my %unp_contents = %{ $self -> popout_contents_build( $unp_d -> contents_path() ) };
 							# my %my_contents = %{ $self -> popout_contents_build( $d -> contents_path() ) };
@@ -244,8 +249,12 @@ sub action_remote_info
 						{
 							$self -> msg( "received Safejunk dir is ok, revision",
 								      $unp_d -> revno(),
+								      "from",
+								      &SJ::Util::mrweb_stuff_pstrftime( $unp_d -> timestamp() ),
 								      "while my revision is",
-								      $d -> revno() );
+								      $d -> revno(),
+								      "from",
+								      &SJ::Util::mrweb_stuff_pstrftime( $d -> timestamp() ) );
 
 						}
 
@@ -459,7 +468,7 @@ sub action_local_info
 			$self -> msg( "injalid Safejunk dir", $path, ":", $err );
 		} else
 		{
-			$self -> msg( "revision", $d -> revno() );
+			$self -> msg( "revision", $d -> revno(), "from", &SJ::Util::mrweb_stuff_pstrftime( $d -> timestamp() or 0 ) );
 		}
 	} else
 	{
@@ -666,7 +675,13 @@ sub action_update_rep
 			{
 				my $was = $d -> revno();
 				my $new = $d -> bump_revno();
-				$self -> msg( "revision updated", $was, "->", $new );
+				$d -> set_timestamp( time() );
+				$self -> msg( "revision updated",
+					      $was,
+					      "->",
+					      $new,
+					      "timestamp set to",
+					      &SJ::Util::mrweb_stuff_pstrftime( $d -> timestamp() ) );
 			} else
 			{
 				$self -> msg( "no changes, revision not updated" );

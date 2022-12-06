@@ -7,11 +7,13 @@ use Moose;
 has 'path' => ( is => 'rw', isa => 'Str', required => 1 );
 has 'config_path' => ( is => 'rw', isa => 'Str', lazy => 1, builder => '_build_config_path' );
 has 'revno_path' => ( is => 'rw', isa => 'Str', lazy => 1, builder => '_build_revno_path' );
+has 'timestamp_path' => ( is => 'rw', isa => 'Str', lazy => 1, builder => '_build_timestamp_path' );
 has 'filelist_path' => ( is => 'rw', isa => 'Str', lazy => 1, builder => '_build_filelist_path' );
 has 'contents_path' => ( is => 'rw', isa => 'Str', lazy => 1, builder => '_build_contents_path' );
 
 has 'config' => ( is => 'rw', isa => 'HashRef' );
 has 'revno' => ( is => 'rw', isa => 'Int', lazy => 1, builder => '_build_revno' );
+has 'timestamp' => ( is => 'rw', isa => 'Int', lazy => 1, builder => '_build_timestamp' );
 has 'managed_entries' => ( is => 'rw', isa => 'ArrayRef[Str]' );
 
 use File::Spec ();
@@ -34,6 +36,20 @@ sub _build_revno
 	return $rv;
 }
 
+sub _build_timestamp
+{
+	my $self = shift;
+
+	my $rv = 0;
+
+	if( -f $self -> timestamp_path() )
+	{
+		$rv = int( &SJ::Util::slurp( $self -> timestamp_path() ) or 0 );
+	}
+
+	return $rv;
+}
+
 sub bump_revno
 {
 	my $self = shift;
@@ -51,6 +67,18 @@ sub set_revno
 	$self -> revno( $revno );
 
 	return $revno;
+}
+
+sub set_timestamp
+{
+	my ( $self, $timestamp ) = @_;
+
+	assert( open( my $fh, '>', $self -> timestamp_path() ) );
+	$fh -> print( $timestamp );
+	$fh -> close();
+	$self -> timestamp( $timestamp );
+
+	return $timestamp;
 }
 
 sub check_errs
@@ -195,6 +223,15 @@ sub _build_revno_path
 	my $self = shift;
 
 	my $rv = File::Spec -> catfile( $self -> path(), 'meta', 'revno' );
+
+	return $rv;
+}
+
+sub _build_timestamp_path
+{
+	my $self = shift;
+
+	my $rv = File::Spec -> catfile( $self -> path(), 'meta', 'timestamp' );
 
 	return $rv;
 }
