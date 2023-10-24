@@ -735,7 +735,7 @@ sub action_restore_from_rep
 			$self -> msg( "injalid Safejunk dir", $path, ":", $err );
 		} else
 		{
-			$self -> msg( "path is ok, continuing" );
+			$self -> msg( "(rr) path is ok, continuing" );
 
 			my %safe_contents = %{ $self -> popout_contents_build( $d -> contents_path() ) };
 
@@ -827,17 +827,8 @@ sub action_restore_from_rep
 				{
 					if( $change eq 'md5' )
 					{
-						if( -f $fp_or )
-						{
-							assert( unlink( $fp_or ), "remove " . $fp_or );
-						} elsif( -d $fp_or )
-						{
-							assert( 0 );
-						}
-						assert( -f $fp_ir );
-
-						my $force_overwrite = 0;
-
+						my $force_overwrite = ( -f $fp_or ? 0 : 1 );
+						
 						unless( $force_overwrite )
 						{
 							my @s = stat( $fp_or );
@@ -854,6 +845,15 @@ sub action_restore_from_rep
 
 						if( $force_overwrite )
 						{
+							if( -f $fp_or )
+							{
+								assert( unlink( $fp_or ), "remove " . $fp_or );
+							} elsif( -d $fp_or )
+							{
+								assert( 0 );
+							}
+							assert( -f $fp_ir );
+							
 							copy( $fp_ir, $fp_or );
 						}
 					}
