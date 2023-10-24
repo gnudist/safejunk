@@ -835,7 +835,27 @@ sub action_restore_from_rep
 							assert( 0 );
 						}
 						assert( -f $fp_ir );
-						copy( $fp_ir, $fp_or );
+
+						my $force_overwrite = 0;
+
+						unless( $force_overwrite )
+						{
+							my @s = stat( $fp_or );
+							my $mtime_or = $s[ 9 ];
+
+							if( $mtime_or > $d -> timestamp() )
+							{
+								$self -> msg( "Warning: preserved newer", $fp_or );
+							} else
+							{
+								$force_overwrite = 1;
+							}
+						}
+
+						if( $force_overwrite )
+						{
+							copy( $fp_ir, $fp_or );
+						}
 					}
 					
 					if( $change eq 'mode' )
