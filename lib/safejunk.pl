@@ -855,6 +855,7 @@ sub action_restore_from_rep
 							assert( -f $fp_ir );
 							
 							copy( $fp_ir, $fp_or );
+							$change = 'mode';
 						}
 					}
 					
