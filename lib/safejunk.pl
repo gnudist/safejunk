@@ -11,7 +11,7 @@ extends 'SJ::App';
 with 'SJ::Msg';
 
 has 'cmd_line' => ( is => 'rw', isa => 'ArrayRef[Str]' );
-has 'version' => ( is => 'ro', isa => 'Str', default => '0.01' );
+has 'version' => ( is => 'ro', isa => 'Str', default => '0.02' );
 
 use SJ::Dir ();
 use SJ::Util ();
@@ -131,6 +131,11 @@ sub action_pull_rep
 								      $d -> revno(),
 								      "from",
 								      &SJ::Util::mrweb_stuff_pstrftime( $d -> timestamp() ) );
+
+							if( $d -> revno() == $unp_d -> revno() )
+							{
+								$self -> msg( "same!" );
+							}
 
 							$d -> config() -> { 'path' } = $unp_d -> contents_path();
 							$self -> action_update_rep( pre_d => $d,
@@ -255,7 +260,10 @@ sub action_remote_info
 								      $d -> revno(),
 								      "from",
 								      &SJ::Util::mrweb_stuff_pstrftime( $d -> timestamp() ) );
-
+							if( $d -> revno() == $unp_d -> revno() )
+							{
+								$self -> msg( "same!" );
+							}
 						}
 
 
@@ -648,7 +656,7 @@ sub action_update_rep
 						utime( $canon -> { 'atime' },
 						       $canon -> { 'mtime' },
 						       $fp_ir );
-						
+						$change = 'mtime';
 					}
 					
 					if( $change eq 'mode' )
@@ -659,8 +667,10 @@ sub action_update_rep
 						utime( $canon -> { 'atime' },
 						       $canon -> { 'mtime' },
 						       $fp );
-						
-					} elsif( ( $change eq 'atime' ) or ( $change eq 'mtime' ) )
+						$change = 'mtime';
+					}
+
+					if( ( $change eq 'atime' ) or ( $change eq 'mtime' ) )
 					{
 						utime( $canon -> { 'atime' },
 						       $canon -> { 'mtime' },
@@ -864,8 +874,11 @@ sub action_restore_from_rep
 						my $newmode = $canon -> { 'mode' };
 						$self -> msg( "(1) setting mode", $newmode, "to", $fp_or );
 						assert( chmod( $newmode, $fp_or ) );
+						$change = 'mtime';
 						
-					} elsif( ( $change eq 'atime' ) or ( $change eq 'mtime' ) )
+					}
+
+					if( ( $change eq 'atime' ) or ( $change eq 'mtime' ) )
 					{
 						utime( $canon -> { 'atime' },
 						       $canon -> { 'mtime' },
